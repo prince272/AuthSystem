@@ -28,6 +28,10 @@ using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationM
 using AuthSystem.WebApi.Options;
 using AuthSystem.WebApi.Providers.Ngrok;
 using AuthSystem.WebApi.Services;
+using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 try
 {
@@ -136,6 +140,8 @@ try
         builder.Configuration.GetRequiredSection("Twilio").Bind(options);
     });
 
+    builder.Services.AddHttpContextAccessor();
+
     // Configure authentication schemes
     builder.Services.AddAuthentication(options =>
     {
@@ -202,8 +208,6 @@ try
 
     // Configure Swagger/OpenAPI
     builder.Services.AddEndpointsApiExplorer();
-
-    builder.Services.ConfigureOptions<ConfigureSwaggerGenOptions>();
     builder.Services.AddSwaggerGen();
 
     builder.Services.Configure<IdentityServiceOptions>(options =>
@@ -232,6 +236,48 @@ try
         }
     }
 
+    builder.Services.AddSwaggerGen(options =>
+    {
+        // Add the JWT security scheme
+        var jwtSecurityScheme = new OpenApiSecurityScheme
+        {
+            BearerFormat = "JWT",
+            Name = "JWT Authentication",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.Http,
+            Scheme = JwtBearerDefaults.AuthenticationScheme,
+            Description = "Put **_ONLY_** your JWT Bearer token on the textbox below!",
+
+            Reference = new OpenApiReference
+            {
+                Id = JwtBearerDefaults.AuthenticationScheme,
+                Type = ReferenceType.SecurityScheme
+            }
+        };
+
+
+
+        // .NET 7 introduce Typed Http Results, but Swashbuckle don't generate the Open Api Response from this types.
+        // This filter will generate the Open Api Response for Typed Http Results.
+        // source: https://github.com/vernou/Vernou.Swashbuckle.HttpResultsAdapter
+        options.OperationFilter<HttpResultsOperationFilter>();
+
+        options.AddSecurityDefinition(jwtSecurityScheme.Reference.Id, jwtSecurityScheme);
+
+        options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { jwtSecurityScheme, Array.Empty<string>() }
+    });
+
+        // Include XML comments (optional)
+        var xmlFilePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
+        if (File.Exists(xmlFilePath))
+        {
+            options.IncludeXmlComments(xmlFilePath);
+        }
+    });
+
+
     var app = builder.Build();
 
     // Run database migrations
@@ -251,11 +297,21 @@ try
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment())
     {
-        app.UseSwagger(options =>
+        app.UseSwagger(c =>
         {
-            options.SerializeAsV2 = true;
+            c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
+            {
+                string currentOrigin = $"{httpReq.Scheme}://{httpReq.Host}";
+                swaggerDoc.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer
+            {
+                Url = currentOrigin,
+                Description = "Defines the server URL and configuration for API operations."
+            }
+        };
+            });
         });
-
         app.UseSwaggerUI(swaggerUiOptions =>
         {
             var responseInterceptor = @"(res) => 

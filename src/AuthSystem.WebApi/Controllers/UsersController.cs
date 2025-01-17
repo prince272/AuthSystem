@@ -35,7 +35,7 @@ namespace AuthSystem.WebApi.Controllers
         }
 
         /// <summary>
-        /// Creates a new user account.
+        /// Registers a new user account.
         /// </summary>
         /// <param name="form">The data required to create the new user account.</param>
         /// <returns>The result of the account creation operation.</returns>
@@ -46,7 +46,7 @@ namespace AuthSystem.WebApi.Controllers
         }
 
         /// <summary>
-        /// Signs into an existing user account.
+        /// Logs into an existing user account.
         /// </summary>
         /// <param name="form">The data required to sign into the user account.</param>
         /// <returns>The result of the sign-in operation.</returns>
@@ -69,7 +69,7 @@ namespace AuthSystem.WebApi.Controllers
         }
 
         /// <summary>
-        /// Signs out the current user.
+        /// Logs out the current user.
         /// </summary>
         /// <param name="form">The data required to sign out the user.</param>
         /// <returns>The result of the sign-out operation.</returns>
